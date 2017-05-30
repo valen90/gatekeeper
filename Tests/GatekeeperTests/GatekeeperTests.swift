@@ -12,9 +12,6 @@ class GatekeeperTests: XCTestCase {
         ("testRateLimiter", testRateLimiter),
         ("testRateLimiterNoPeer", testRateLimiterNoPeer),
         ("testRateLimiterCountRefresh", testRateLimiterCountRefresh),
-        ("testSSLEnforcerBasic", testSSLEnforcerBasic),
-        ("testSSLEnforcerDenied", testSSLEnforcerDenied),
-        ("testSSLEnforcerDoNotEnforce", testSSLEnforcerDoNotEnforce),
         ("testRefreshIntervalValues", testRefreshIntervalValues),
     ]
     
@@ -87,48 +84,6 @@ class GatekeeperTests: XCTestCase {
         XCTAssertEqual(requestsLeft, 99, "Requests left should've reset")
     }
     
-    func testSSLEnforcerBasic() {
-        let middleware = SSLEnforcer(error: Abort.badRequest, drop: productionDrop)
-        let request = getHTTPSRequest()
-        
-        do {
-            _ = try middleware.respond(to: request, chainingTo: MockResponder())
-        } catch {
-            XCTFail("Request failed: \(error)")
-        }
-    }
-    
-    func testSSLEnforcerDenied() {
-        let middleware = SSLEnforcer(error: Abort.badRequest, drop: productionDrop)
-        let request = getHTTPRequest()
-        
-        do {
-            _ = try middleware.respond(to: request, chainingTo: MockResponder())
-            XCTFail("Should've been rejected")
-        } catch let error as Abort {
-            switch error.status {
-                case .badRequest:
-                    // success
-                    break
-                default:
-                    XCTFail("Expected bad request")
-            }
-        } catch {
-            XCTFail("Request failed: \(error)")
-        }
-    }
-    
-    func testSSLEnforcerDoNotEnforce() {
-        let middleware = SSLEnforcer(error: Abort.badRequest, drop: developmentDrop)
-        let request = getHTTPSRequest()
-        
-        do {
-            _ = try middleware.respond(to: request, chainingTo: MockResponder())
-        } catch {
-            XCTFail("SSL should not have been enforced for development.")
-        }
-    }
-    
     func testRefreshIntervalValues() {
         let expected: [(Rate.Interval, Double)] = [
             (.second, 1),
@@ -158,14 +113,14 @@ extension GatekeeperTests {
     }
 
     func getHTTPRequest() -> Request {
-        return try! Request(method: .get, uri: "http://localhost:8080/")
+        return Request(method: .get, uri: "http://localhost:8080/")
     }
     
     func getHTTPSRequest() -> Request {
         return try! Request(
             method: .get,
             uri: URI("https://localhost:8080/"),
-            peerAddress: PeerAddress(stream: "192.168.1.2")
+            headers: [HeaderKey.forwarded: "for=192.168.1.2;"]
         )
     }
 }
